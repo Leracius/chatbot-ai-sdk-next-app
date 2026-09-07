@@ -1,22 +1,14 @@
-export const UI_MESSAGES = {
-  LOADING: {
-    STORY: "Generando historia...",
-    IMAGE: "Generando imagen...",
-  },
-  ERROR: {
-    STORY_GENERATION: "Error al generar historia",
-    IMAGE_GENERATION: "Error al generar imagen",
-    MISSING_PROMPT: "Falta el prompt para generar la historia",
-  },
-  PLACEHOLDERS: {
-    INPUT:
-      "Describe qué quieres hacer, adónde ir, qué examinar o cómo reaccionar...",
-  },
-};
-
-export const GAME_CONFIG = {
-  IMAGE: {
-    DEFAULT_PROMPT: "zombie apocalypse scene pixel art style",
-    SEPARATOR: "IMAGEN: ",
-  },
+export const UI_TEXT = {
+  APP_NAME: "AI Chat Assistant",
+  APP_DESCRIPTION: "Asistente inteligente potenciado por Google Gemini",
+  PLACEHOLDER_INPUT: "Escribe tu mensaje aquí...",
+  BUTTON_SEND: "Enviar mensaje",
+  BUTTON_CLEAR: "Nueva conversación",
+  LOADING_TEXT: "Pensando respuesta...",
+  ERROR_GENERIC: "Ocurrió un error al procesar tu solicitud.",
+  ERROR_MISSING_API_KEY:
+    "Falta configurar la clave GOOGLE_GENERATIVE_AI_API_KEY. Por favor agrégala en tu archivo .env.local.",
+  EMPTY_STATE_TITLE: "¿En qué te puedo ayudar hoy?",
+  EMPTY_STATE_SUBTITLE:
+    "Puedes hacerme preguntas, pedirme que revise código, redactar textos o resolver dudas.",
 };
