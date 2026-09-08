@@ -1,25 +1,17 @@
-# AI Chat Assistant 🤖✨
+# AI Chat Assistant & WhatsApp Business Sales Bot 🤖✨
 
-Una aplicación web moderna, minimalista y modular de chat con Inteligencia Artificial, construida con **Next.js 15**, **React 19**, **Vercel AI SDK** y **Google Gemini**.
-
-Este proyecto sirve como la **Fase 1** (fundación limpia y extensible) para el desarrollo progresivo de aplicaciones conversacionales inteligentes y agentes de IA.
+Una aplicación web moderna, minimalista y modular de chat con Inteligencia Artificial, construida con **Next.js 15**, **React 19**, **Vercel AI SDK**, **Google Gemini** y **Supabase (PostgreSQL)**, con soporte para canal Web y canal **WhatsApp Business** (mediante conexión QR).
 
 ---
 
 ## 🚀 Características Principales
 
-* **Selector dinámico de motor de IA:** Permite alternar en caliente entre distintos modelos de Google Gemini directamente desde la interfaz:
-  * **Gemini 3.8 Flash** *(Por defecto)*: Modelo de última generación, ultra rápido, eficiente e inteligente.
-  * **Gemini 3.7 Flash**: Capacidades híbridas con razonamiento avanzado.
-  * **Gemini 3.6 Flash**: Alta estabilidad para conversaciones cotidianas.
-  * **Gemini 3.1 Pro (Preview)**: Máxima capacidad analítica y tareas complejas (requiere cuota Pro).
-* **Arquitectura Full-Stack segura:** La comunicación con Google Gemini se realiza exclusivamente a través de Route Handlers del servidor (`/api/chat`), protegiendo tus credenciales de API para que nunca queden expuestas en el navegador del usuario.
-* **Componentes UI especializados (AI Elements):** Interfaz construida con primitivas accesibles de Radix UI y Tailwind CSS v4, incluyendo:
-  * Contenedor de conversación con scroll automático y botón de anclaje inferior.
-  * Renderizado elegante de Markdown y formateo de texto en las respuestas del asistente.
-  * Input de chat responsivo con soporte de atajos de teclado (`Enter` para enviar, `Shift + Enter` para salto de línea).
-* **Validación preventiva y diagnóstico:** Detección automática de configuración faltante en `.env.local`, mostrando alertas legibles y accionables en lugar de errores crípticos.
-* **Reinicio de sesión:** Botón rápido para limpiar la conversación y comenzar un nuevo hilo con un solo clic.
+* **Arquitectura Omnicanal Unificada (Web + WhatsApp):** El mismo asistente con sus 5 productos y reglas de venta atiende tanto en la interfaz web como por WhatsApp Business.
+* **Memoria Persistente y CRM con Supabase:** Guarda las conversaciones organizadas por número de teléfono en PostgreSQL. Puedes ver todas las charlas de tus clientes directamente desde el dashboard visual de Supabase.
+* **Conexión de WhatsApp por Código QR (Opción B):** Compatible con Evolution API / Baileys. Escaneas el QR desde la app de WhatsApp Business en tu celular, manteniendo tu aplicación móvil intacta y pudiendo intervenir manualmente cuando lo desees.
+* **Filtros Anti-Bucles:** El webhook de WhatsApp detecta e ignora mensajes propios (`fromMe`) y estados/broadcasts.
+* **Selector dinámico de motor de IA:** Permite alternar entre modelos Gemini (Gemini 3.8 Flash por defecto, 3.7 Flash, 3.6 Flash o 3.1 Pro).
+* **Seguridad Full-Stack:** Las claves de API de Google, Supabase y WhatsApp nunca se exponen al navegador.
 
 ---
 
@@ -30,10 +22,11 @@ Este proyecto sirve como la **Fase 1** (fundación limpia y extensible) para el 
 | **Framework Full-Stack** | [Next.js 15](https://nextjs.org/) (App Router + Turbopack) |
 | **Biblioteca de UI** | [React 19](https://react.dev/) |
 | **SDK de Inteligencia Artificial** | [Vercel AI SDK](https://sdk.vercel.ai/) (`ai` v5) |
-| **Proveedor de Modelos** | [`@ai-sdk/google`](https://www.npmjs.com/package/@ai-sdk/google) (Google Gemini API) |
+| **Proveedor de Modelos** | [`@ai-sdk/google`](https://www.npmjs.com/package/@ai-sdk/google) (Google Gemini 3 Flash) |
+| **Base de Datos & Memoria** | [Supabase](https://supabase.com/) (PostgreSQL) vía `@supabase/supabase-js` |
+| **Canal WhatsApp** | Microservicio QR (Evolution API / Baileys Webhook) |
 | **Estilos & Diseño** | [Tailwind CSS v4](https://tailwindcss.com/) & [Lucide Icons](https://lucide.dev/) |
 | **Componentes Accesibles** | [Radix UI](https://www.radix-ui.com/) & [AI Elements](https://ai-elements.dev/) |
-| **Tooling & Formato** | [TypeScript](https://www.typescriptlang.org/) & [Biome](https://biomejs.dev/) |
 
 ---
 
@@ -44,79 +37,55 @@ chatbot-ai-sdk-next-app/
 ├── src/
 │   ├── app/
 │   │   ├── api/
-│   │   │   └── chat/
-│   │   │       └── route.ts          # Endpoint backend seguro que invoca a Gemini
-│   │   ├── components/
-│   │   │   ├── chat-header.tsx       # Cabecera con selector de modelo y reset de chat
-│   │   │   ├── chat-input.tsx        # Entrada de texto y atajos de teclado
-│   │   │   ├── chat-message.tsx      # Renderizado de mensajes y Markdown
-│   │   │   └── model-selector.tsx    # Menú desplegable para alternar motores de IA
+│   │   │   ├── chat/
+│   │   │   │   └── route.ts          # Endpoint para el chat web
+│   │   │   └── whatsapp/
+│   │   │       └── route.ts          # Webhook receptor de mensajes de WhatsApp
+│   │   ├── components/               # Componentes UI (Header, Input, Message, ModelSelector)
 │   │   ├── hooks/
-│   │   │   └── use-chat.ts           # Custom hook que gestiona el estado y peticiones
-│   │   ├── layout.tsx                # Estructura base y fuentes tipográficas (Geist)
-│   │   └── page.tsx                  # Vista principal de la aplicación
-│   ├── components/
-│   │   ├── ai-elements/              # Primitivas visuales para interfaces de chat/IA
-│   │   └── ui/                       # Componentes base (Botones, Select, Inputs, etc.)
+│   │   │   └── use-chat.ts           # Hook de estado de chat web
+│   │   ├── layout.tsx
+│   │   └── page.tsx                  # Vista principal web
 │   └── lib/
-│       ├── consts.ts                 # Constantes de textos de interfaz
-│       ├── models.ts                 # Catálogo centralizado de modelos Gemini
-│       ├── prompts.ts                # Prompt de sistema del asistente
+│       ├── chat-service.ts           # Servicio centralizado de IA (Web + WhatsApp)
+│       ├── memory.ts                 # Funciones de historial y conversaciones en Supabase
+│       ├── models.ts                 # Catálogo de modelos Gemini vigentes
+│       ├── prompts.ts                # Prompt de sistema del vendedor
+│       ├── supabase.ts               # Cliente singleton de Supabase
 │       ├── types.ts                  # Tipos TypeScript compartidos
-│       └── utils.ts                  # Utilidades de estilos (clsx + tailwind-merge)
+│       └── utils.ts
+├── supabase_schema.sql               # Script SQL para inicializar Supabase
 ├── .env.example                      # Plantilla de variables de entorno
-├── .env.local                        # Clave de API local (ignorado en Git)
-├── biome.json                        # Configuración de Biome (linter/formatter)
-├── package.json                      # Dependencias y scripts
-└── tsconfig.json                     # Configuración de TypeScript
+├── .env.local                        # Variables de entorno locales
+├── package.json
+└── tsconfig.json
 ```
 
 ---
 
-## ⚙️ Instalación y Puesta en Marcha
+## ⚙️ Puesta en Marcha
 
-### 1. Clonar el repositorio e instalar dependencias
+### 1. Variables de Entorno (`.env.local`)
 
-```bash
-git clone https://github.com/Leracius/chatbot-ai-sdk-next-app.git
-cd chatbot-ai-sdk-next-app
-pnpm install
+```env
+# Google Gemini
+GOOGLE_GENERATIVE_AI_API_KEY=tu_clave_de_gemini
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_anon_key
+
+# WhatsApp Business QR (Evolution API)
+WHATSAPP_API_URL=http://localhost:8080
+WHATSAPP_API_KEY=tu_clave_de_evolution_api
+WHATSAPP_INSTANCE_NAME=ventas-bot
 ```
 
-### 2. Configurar la API Key de Gemini
+### 2. Base de Datos
+Copia el contenido de `supabase_schema.sql` y pégalo en el **SQL Editor** de tu proyecto en Supabase para crear las tablas `conversations` y `messages`.
 
-1. Obtén una clave de API gratuita en [Google AI Studio](https://aistudio.google.com/app/apikey).
-2. Crea tu archivo `.env.local` a partir de `.env.example`:
-   ```bash
-   cp .env.example .env.local
-   ```
-3. Pega tu clave en `.env.local`:
-   ```env
-   GOOGLE_GENERATIVE_AI_API_KEY=tu_api_key_aqui
-   ```
-
-### 3. Ejecutar el entorno de desarrollo
-
+### 3. Iniciar en Desarrollo
 ```bash
 pnpm dev
 ```
-
-Abre [http://localhost:3000](http://localhost:3000) en tu navegador para empezar a chatear.
-
----
-
-## 📜 Scripts Disponibles
-
-* `pnpm dev`: Inicia el servidor de desarrollo con Turbopack.
-* `pnpm build`: Genera la compilación de producción optimizada.
-* `pnpm start`: Inicia el servidor de producción tras compilar.
-* `pnpm lint`: Ejecuta el análisis estático con Biome.
-* `pnpm format`: Aplica formato automático de código con Biome.
-
----
-
-## 🗺️ Hoja de Ruta (Futuras Fases)
-
-* [ ] **Fase 2:** Implementar streaming de respuestas en tiempo real (`streamText` y SSE).
-* [ ] **Fase 3:** Respuestas estructuradas con Zod (`generateObject`) y llamadas a herramientas (*Tool Calling*).
-* [ ] **Fase 4:** Persistencia de historial de conversaciones (LocalStorage / Base de datos) y gestión de sesiones.
+Abre [http://localhost:3000](http://localhost:3000) para chatear en la web, o apunta el webhook de Evolution API hacia `/api/whatsapp`.

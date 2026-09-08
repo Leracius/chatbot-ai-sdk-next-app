@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Vincular WhatsApp Business</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    h1 {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .tabs {
+      display: flex;
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 4px;
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      background: none;
+      color: #94a3b8;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: #3b82f6;
+      color: white;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .qr-container {
+      background: white;
+      padding: 16px;
+      border-radius: 12px;
+      display: inline-block;
+      margin-bottom: 16px;
+    }
+    img {
+      display: block;
+      width: 256px;
+      height: 256px;
+    }
+    .pairing-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .input-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #1e293b;
+      color: white;
+      font-size: 14px;
+      outline: none;
+    }
+    button.action-btn {
+      background: #22c55e;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .code-display {
+      font-family: monospace;
+      font-size: 28px;
+      letter-spacing: 4px;
+      font-weight: bold;
+      color: #38bdf8;
+      background: #1e293b;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px dashed #38bdf8;
+      user-select: all;
+    }
+    .steps {
+      text-align: left;
+      font-size: 13px;
+      color: #cbd5e1;
+      background: #0f172a;
+      padding: 14px;
+      border-radius: 8px;
+      line-height: 1.6;
+      margin-top: 14px;
+    }
+    .status {
+      margin-top: 14px;
+      font-size: 13px;
+      color: #22c55e;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Conectar WhatsApp Business</h1>
+    <p>Elige tu método preferido para vincular tu cuenta.</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('qr')">Método 1: Código QR</button>
+      <button class="tab-btn" onclick="switchTab('code')">Método 2: Código de 8 Dígitos</button>
+    </div>
+
+    <!-- Pestaña 1: Código QR -->
+    <div id="tab-qr" class="tab-content active">
+      <div class="qr-container">
+        <img id="qr-img" src="" alt="Cargando código QR..." />
+      </div>
+      <div class="steps">
+        1. Abre <b>WhatsApp Business</b> en tu celular.<br/>
+        2. Ve a <b>Ajustes</b> > <b>Dispositivos vinculados</b>.<br/>
+        3. Toca <b>Vincular un dispositivo</b> y apunta la cámara a este QR.
+      </div>
+    </div>
+
+    <!-- Pestaña 2: Código de Teléfono (Pairing Code) -->
+    <div id="tab-code" class="tab-content">
+      <div class="pairing-box">
+        <label style="display:block; text-align:left; font-size:12px; color:#94a3b8; margin-bottom:6px;">Ingresa tu número con código de país (ej: 54911...):</label>
+        <div class="input-group">
+          <input type="text" id="phone-number" placeholder="Ej: 5491112345678" />
+          <button class="action-btn" onclick="getPairingCode()">Generar</button>
+        </div>
+        <div id="pairing-code-result" style="display:none;">
+          <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">Tu código de vinculación:</div>
+          <div class="code-display" id="code-val">---- ----</div>
+        </div>
+      </div>
+      <div class="steps">
+        1. En WhatsApp: <b>Ajustes</b> > <b>Dispositivos vinculados</b> > <b>Vincular un dispositivo</b>.<br/>
+        2. Abajo toca: <b>"Vincular con el número de teléfono"</b>.<br/>
+        3. Ingresa el código que aparece arriba en tu celular.
+      </div>
+    </div>
+
+    <div class="status" id="status-text">Buscando estado de conexión...</div>
+  </div>
+
+  <script>
+    const API_URL = "http://localhost:8080";
+    const API_KEY = "evolution_secret_key_2026";
+    const INSTANCE = "ventas-bot";
+
+    function switchTab(tab) {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+      if (tab === 'qr') {
+        document.querySelector(".tabs button:nth-child(1)").classList.add("active");
+        document.getElementById("tab-qr").classList.add("active");
+      } else {
+        document.querySelector(".tabs button:nth-child(2)").classList.add("active");
+        document.getElementById("tab-code").classList.add("active");
+      }
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await fetch(`${API_URL}/instance/connectionState/${INSTANCE}`, {
+          headers: { apikey: API_KEY }
+        });
+        const data = await res.json();
+        
+        if (data.instance?.state === "open") {
+          document.getElementById("status-text").innerText = "✅ ¡WhatsApp conectado exitosamente!";
+          document.querySelectorAll(".tab-content, .tabs").forEach(e => e.style.display = "none");
+          return true;
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    async function loadQR() {
+      const isConnected = await loadStatus();
+      if (isConnected) return;
+
+      try {
+        const res = await fetch(`${API_URL}/instance/connect/${INSTANCE}`, {
+          headers: { apikey: API_KEY }
+        });
+        const data = await res.json();
+
+        if (data.instance?.state === "open") {
+          document.getElementById("status-text").innerText = "✅ ¡WhatsApp conectado exitosamente!";
+          document.querySelectorAll(".tab-content, .tabs").forEach(e => e.style.display = "none");
+          return;
+        }
+
+        if (data.base64) {
+          document.getElementById("qr-img").src = data.base64;
+          document.getElementById("status-text").innerText = "🟢 Código QR listo y actualizado";
+        }
+      } catch (err) {
+        document.getElementById("status-text").innerText = "Reintentando conexión con Evolution API...";
+      }
+    }
+
+    async function getPairingCode() {
+      const rawNumber = document.getElementById("phone-number").value.replace(/[^0-9]/g, "");
+      if (!rawNumber) {
+        alert("Por favor ingresa tu número con código de país (ej: 5491112345678)");
+        return;
+      }
+
+      document.getElementById("status-text").innerText = "Generando código de 8 dígitos...";
+
+      try {
+        const res = await fetch(`${API_URL}/instance/connect/${INSTANCE}?number=${rawNumber}`, {
+          headers: { apikey: API_KEY }
+        });
+        const data = await res.json();
+
+        if (data.pairingCode) {
+          document.getElementById("pairing-code-result").style.display = "block";
+          document.getElementById("code-val").innerText = data.pairingCode;
+          document.getElementById("status-text").innerText = "✨ Código generado. Ingrésalo en tu WhatsApp.";
+        } else if (data.code) {
+          document.getElementById("pairing-code-result").style.display = "block";
+          document.getElementById("code-val").innerText = data.code;
+          document.getElementById("status-text").innerText = "✨ Código generado. Ingrésalo en tu WhatsApp.";
+        } else {
+          document.getElementById("status-text").innerText = "No se pudo generar código. Intenta con el código QR.";
+        }
+      } catch (err) {
+        alert("Error al conectar: " + err.message);
+      }
+    }
+
+    loadQR();
+    setInterval(loadQR, 6000);
+  </script>
+</body>
+</html>
