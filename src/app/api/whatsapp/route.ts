@@ -1,126 +1,121 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { processChatMessage } from "@/lib/chat-service";
-
-/**
- * Health check y verificación del Webhook de WhatsApp
- */
-export async function GET(request: NextRequest) {
-  // Manejo de verificación opcional de Meta (si en el futuro se usa Meta Cloud API)
-  const searchParams = request.nextUrl.searchParams;
-  const mode = searchParams.get("hub.mode");
-  const token = searchParams.get("hub.verify_token");
-  const challenge = searchParams.get("hub.challenge");
-
-  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
-
-  if (mode === "subscribe" && token === verifyToken) {
-    return new Response(challenge, { status: 200 });
-  }
-
-  return NextResponse.json({
-    status: "ok",
-    message: "WhatsApp Webhook activo y escuchando eventos.",
-    timestamp: new Date().toISOString(),
-  });
+import {
+  failure,
+  HttpError,
+  jsonBody,
+  rateLimit,
+  requireToken,
+} from "@/lib/security";
+import { checked, database } from "@/lib/supabase";
+import { whatsappSchema } from "@/lib/validation";
+export async function GET() {
+  return NextResponse.json({ status: "ok" });
 }
-
-/**
- * Receptor de eventos de WhatsApp (Evolution API / Baileys QR)
- */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-
-    // 1. Extraer los datos del evento
-    // Evolution API estructura: { event, data: { key: { remoteJid, fromMe }, message: { conversation, extendedTextMessage } } }
-    const event = body.event || body.type;
-    const data = body.data || body;
-
-    // Si no hay datos relevantes, confirmar recepción y salir
-    if (!data) {
-      return NextResponse.json({ received: true });
-    }
-
-    const key = data.key || {};
-    const fromMe = key.fromMe ?? false;
-    const remoteJid = key.remoteJid || data.from || data.sender;
-
-    // 2. FILTRO ANTI-BUCLE: Ignorar mensajes enviados por nosotros mismos o estados
-    if (fromMe || !remoteJid || remoteJid.includes("status@broadcast")) {
-      return NextResponse.json({ ignored: true, reason: "Mensaje propio o broadcast" });
-    }
-
-    // 3. Extraer el texto del mensaje
-    const messageContent =
+    requireToken(request, "WHATSAPP_WEBHOOK_TOKEN");
+    await rateLimit("whatsapp:global", 200);
+    const body = await jsonBody(request);
+    if (!body || typeof body !== "object" || Array.isArray(body))
+      throw new HttpError(400, "Evento inválido.");
+    if (body.event !== "messages.upsert")
+      return NextResponse.json({ ignored: true });
+    const parsed = whatsappSchema.safeParse(body);
+    if (!parsed.success) throw new HttpError(400, "Evento inválido.");
+    const { data, instance } = parsed.data;
+    if (instance !== process.env.WHATSAPP_INSTANCE_NAME)
+      throw new HttpError(403, "Instancia inválida.");
+    if (data.key.fromMe) return NextResponse.json({ ignored: true });
+    const text = (
       data.message?.conversation ||
       data.message?.extendedTextMessage?.text ||
-      data.message?.text ||
-      data.body ||
-      "";
-
-    const userText = typeof messageContent === "string" ? messageContent.trim() : "";
-
-    // Si el mensaje está vacío (ej: sticker, audio o evento de conexión), ignorar por ahora
-    if (!userText) {
-      return NextResponse.json({ ignored: true, reason: "Mensaje sin texto legible" });
-    }
-
-    console.log(`[WhatsApp Inbound] De: ${remoteJid} | Mensaje: "${userText}"`);
-
-    // 4. Procesar el mensaje con Gemini y persistir en Supabase
-    const result = await processChatMessage({
-      sessionId: remoteJid,
-      channel: "whatsapp",
-      userMessage: userText,
+      ""
+    ).trim();
+    if (!text) return NextResponse.json({ ignored: true });
+    const base = process.env.WHATSAPP_API_URL,
+      key = process.env.WHATSAPP_API_KEY;
+    if (!base || !key || !instance)
+      throw new HttpError(503, "Canal no configurado.");
+    const db = database();
+    const eventId = `${instance}:${data.key.id}`;
+    const { error } = await db.from("webhook_events").insert({
+      id: eventId,
+      sender: data.key.remoteJid,
+      status: "processing",
     });
-
-    const botReply = result.message;
-    console.log(`[WhatsApp Outbound] Para: ${remoteJid} | Respuesta: "${botReply.substring(0, 60)}..."`);
-
-    // 5. Enviar la respuesta de vuelta a WhatsApp vía Evolution API
-    const whatsappApiUrl = process.env.WHATSAPP_API_URL;
-    const whatsappApiKey = process.env.WHATSAPP_API_KEY;
-    const instanceName = process.env.WHATSAPP_INSTANCE_NAME || "ventas-bot";
-
-    if (whatsappApiUrl && whatsappApiKey) {
-      try {
-        const sendUrl = `${whatsappApiUrl.replace(/\/$/, "")}/message/sendText/${instanceName}`;
-
-        const sendResponse = await fetch(sendUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: whatsappApiKey,
-          },
-          body: JSON.stringify({
-            number: remoteJid,
-            text: botReply,
-          }),
-        });
-
-        if (!sendResponse.ok) {
-          const errText = await sendResponse.text();
-          console.error("Error al enviar mensaje por Evolution API:", errText);
-        }
-      } catch (sendErr) {
-        console.error("Fallo de red al enviar mensaje de WhatsApp:", sendErr);
-      }
-    } else {
-      console.warn(
-        "Aviso: WHATSAPP_API_URL o WHATSAPP_API_KEY no están configuradas en .env.local. La respuesta fue generada y guardada en Supabase, pero no enviada por red."
+    if (error) {
+      if (error.code !== "23505") throw new Error("Event store failed");
+      const existing = checked(
+        await db
+          .from("webhook_events")
+          .select("status")
+          .eq("id", eventId)
+          .single(),
+      );
+      if (existing.status === "sent" || existing.status === "paused")
+        return NextResponse.json({ duplicate: true });
+      throw new HttpError(
+        409,
+        "Evento pendiente de revisión; no se reenvía automáticamente.",
       );
     }
-
-    return NextResponse.json({
-      success: true,
-      sender: remoteJid,
-      reply: botReply,
-    });
-  } catch (error: unknown) {
-    console.error("Error en Webhook de WhatsApp:", error);
-    return NextResponse.json(
-      { error: "Error al procesar mensaje de WhatsApp" },
-      { status: 500 }
-    );
+    // Persist before external side effects. Unknown outcomes require reconciliation.
+    try {
+      let paused = false;
+      await processChatMessage(
+        {
+          sessionId: data.key.remoteJid,
+          channel: "whatsapp",
+          userMessage: text,
+        },
+        async (result) => {
+          if (result.delivery === "paused") {
+            paused = true;
+            checked(
+              await db
+                .from("webhook_events")
+                .update({ status: "paused" })
+                .eq("id", eventId),
+            );
+            return;
+          }
+          checked(
+            await db
+              .from("webhook_events")
+              .update({ status: "sending", reply: result.message })
+              .eq("id", eventId),
+          );
+          const sent = await fetch(
+            `${base.replace(/\/$/, "")}/message/sendText/${encodeURIComponent(instance)}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json", apikey: key },
+              body: JSON.stringify({
+                number: data.key.remoteJid,
+                text: result.message,
+              }),
+              signal: AbortSignal.timeout(10000),
+            },
+          );
+          if (!sent.ok) throw new Error("Delivery failed");
+          checked(
+            await db
+              .from("webhook_events")
+              .update({ status: "sent" })
+              .eq("id", eventId),
+          );
+        },
+      );
+      return NextResponse.json(paused ? { paused: true } : { success: true });
+    } catch (error) {
+      await db
+        .from("webhook_events")
+        .update({ status: "review" })
+        .eq("id", eventId);
+      throw error;
+    }
+  } catch (error) {
+    return failure(error);
   }
 }
