@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DEFAULT_MODEL_ID } from "@/lib/models";
 import type { ChatMessage, ChatResponse } from "@/lib/types";
 
@@ -13,10 +13,37 @@ export function useChat() {
     setInput(e.target.value);
   };
 
-  const clearChat = () => {
-    setMessages([]);
-    setError(null);
+  const clearChat = async () => {
+    try {
+      const response = await fetch("/api/chat", { method: "DELETE" });
+      if (!response.ok) throw new Error();
+      setMessages([]);
+      setError(null);
+    } catch {
+      setError("No se pudo iniciar una conversación nueva.");
+    }
   };
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/chat", { signal: controller.signal })
+      .then(async (r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((data) =>
+        setMessages(
+          data.messages.map((m: ChatMessage) => ({
+            ...m,
+            id: crypto.randomUUID(),
+          })),
+        ),
+      )
+      .catch((e) => {
+        if (e.name !== "AbortError")
+          setError("No se pudo recuperar el historial.");
+      });
+    return () => controller.abort();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +70,7 @@ export function useChat() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: newMessages.map((m) => ({
+          messages: newMessages.slice(-20).map((m) => ({
             role: m.role,
             content: m.content,
           })),
@@ -69,7 +96,6 @@ export function useChat() {
       const message =
         err instanceof Error ? err.message : "Error al conectar con la IA.";
       setError(message);
-      console.error("Error en useChat:", err);
     } finally {
       setIsLoading(false);
     }

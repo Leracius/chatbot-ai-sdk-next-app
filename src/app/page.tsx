@@ -1,7 +1,11 @@
 "use client";
 
 import { AlertCircle, Sparkles } from "lucide-react";
-import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
 import { Loader } from "@/components/ai-elements/loader";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import { UI_TEXT } from "@/lib/consts";
@@ -33,6 +37,14 @@ export default function Home() {
         isLoading={isLoading}
       />
 
+      <p className="px-4 py-2 text-sm text-muted-foreground">
+        El historial se guarda en el servidor. La limpieza programada tiene un
+        plazo objetivo de 7 días. No compartas datos sensibles. Escribe «asesor»
+        para solicitar atención humana.{" "}
+        <a href="/dashboard" className="underline">
+          Panel del equipo
+        </a>
+      </p>
       <main className="flex-1 overflow-hidden relative flex flex-col">
         <Conversation className="flex-1 h-full">
           <ConversationContent className="max-w-2xl mx-auto px-4 py-6">

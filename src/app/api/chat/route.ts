@@ -1,42 +1,75 @@
 import { type NextRequest, NextResponse } from "next/server";
-
 import { processChatMessage } from "@/lib/chat-service";
-import { UI_TEXT } from "@/lib/consts";
-import type { ChatRequest, ChatResponse } from "@/lib/types";
-
+import { getConversationHistory, getOrCreateConversation } from "@/lib/memory";
+import {
+  failure,
+  HttpError,
+  jsonBody,
+  rateLimit,
+  sameOrigin,
+  session,
+} from "@/lib/security";
+import { chatSchema } from "@/lib/validation";
 export async function POST(request: NextRequest) {
   try {
-    const body: ChatRequest = await request.json();
-    const { messages, model } = body;
-
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json(
-        { error: "No se recibieron mensajes para procesar." },
-        { status: 400 }
-      );
-    }
-
+    sameOrigin(request);
+    const identity = session(request);
+    await rateLimit("web:global", 200);
+    await rateLimit(`web:${identity.id}`);
+    const parsed = chatSchema.safeParse(await jsonBody(request));
+    if (!parsed.success)
+      throw new HttpError(400, "Mensajes o modelo invÃ¡lidos.");
+    const latest = parsed.data.messages.at(-1);
+    if (!latest) throw new HttpError(400, "Mensaje vacío.");
     const result = await processChatMessage({
+      sessionId: identity.id,
       channel: "web",
-      messages,
-      model,
+      userMessage: latest.content,
+      model: parsed.data.model,
     });
-
-    const response: ChatResponse = {
-      message: result.message,
-      model: result.model,
-    };
-
-    return NextResponse.json(response);
-  } catch (error: unknown) {
-    console.error("Error al procesar la solicitud de chat web:", error);
-
-    const errorMessage =
-      error instanceof Error ? error.message : UI_TEXT.ERROR_GENERIC;
-
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
+    const response = NextResponse.json(result, {
+      headers: { "Cache-Control": "no-store" },
+    });
+    response.cookies.set("sales_session", identity.cookie, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 604800,
+    });
+    return response;
+  } catch (error) {
+    return failure(error);
+  }
+}
+export async function GET(request: NextRequest) {
+  try {
+    await rateLimit("history:global", 600);
+    const identity = session(request);
+    const conversation = await getOrCreateConversation(identity.id, "web");
+    const response = NextResponse.json(
+      { messages: await getConversationHistory(conversation.id) },
+      { headers: { "Cache-Control": "no-store" } },
     );
+    response.cookies.set("sales_session", identity.cookie, {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 604800,
+    });
+    return response;
+  } catch (error) {
+    return failure(error);
+  }
+}
+export async function DELETE(request: NextRequest) {
+  try {
+    sameOrigin(request);
+    const response = NextResponse.json({ ok: true });
+    response.cookies.delete("sales_session");
+    return response;
+  } catch (error) {
+    return failure(error);
   }
 }

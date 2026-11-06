@@ -4,42 +4,25 @@ export interface AIModel {
   description: string;
   badge?: string;
 }
-
+// Verified 2026-11-05: https://firebase.google.com/docs/ai-logic/models?api=dev
+// Account availability still requires the provider's models.list preflight.
 export const AVAILABLE_MODELS: AIModel[] = [
   {
     id: "gemini-3.8-flash",
     name: "Gemini 3.8 Flash",
-    description: "Última generación. Ultra rápido, eficiente e inteligente",
+    description: "Asistente comercial",
     badge: "Recomendado",
   },
   {
-    id: "gemini-3.7-flash",
-    name: "Gemini 3.7 Flash",
-    description: "Modelo híbrido con capacidades avanzadas de razonamiento",
-    badge: "Razonamiento",
-  },
-  {
-    id: "gemini-3.6-flash",
-    name: "Gemini 3.6 Flash",
-    description: "Versión de alta estabilidad para chat continuo",
-    badge: "Estable",
-  },
-  {
-    id: "gemini-3.1-pro-preview",
-    name: "Gemini 3.1 Pro (Preview)",
-    description: "Máxima capacidad analítica (requiere cuota Pro habilitada)",
-    badge: "Pro",
+    id: "gemini-3.5-flash-lite",
+    name: "Gemini 3.5 Flash-Lite",
+    description: "Consultas de bajo costo",
   },
 ];
-
-export const DEFAULT_MODEL_ID = "gemini-3.8-flash";
-
-export function getModelById(id: string): AIModel {
-  return (
-    AVAILABLE_MODELS.find((model) => model.id === id) || AVAILABLE_MODELS[0]
-  );
+export const DEFAULT_MODEL_ID = AVAILABLE_MODELS[0].id;
+export function getModelById(id: string) {
+  return AVAILABLE_MODELS.find((m) => m.id === id) || AVAILABLE_MODELS[0];
 }
-
-export function isValidModelId(id: string): boolean {
-  return AVAILABLE_MODELS.some((model) => model.id === id);
+export function isValidModelId(id: string) {
+  return AVAILABLE_MODELS.some((m) => m.id === id);
 }

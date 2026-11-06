@@ -1,8 +1,8 @@
 "use client";
 
+import { Bot, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UI_TEXT } from "@/lib/consts";
-import { Bot, RotateCcw } from "lucide-react";
 import { ModelSelector } from "./model-selector";
 
 interface ChatHeaderProps {
@@ -50,11 +50,12 @@ export function ChatHeader({
               size="sm"
               onClick={onClearChat}
               disabled={isLoading}
+              aria-label={UI_TEXT.BUTTON_CLEAR}
               title={UI_TEXT.BUTTON_CLEAR}
               className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground"
             >
               <RotateCcw className="size-3.5 mr-1" />
-              <span className="hidden sm:inline">Limpiar</span>
+              <span className="hidden sm:inline">Nueva conversación</span>
             </Button>
           )}
         </div>
